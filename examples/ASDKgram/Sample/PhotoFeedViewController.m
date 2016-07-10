@@ -23,6 +23,9 @@
 #import "PhotoFeedModel.h"
 #import "CommentView.h"
 
+#import "ASDKPerf.h"
+#import "FBAnimationPerformanceTracker.h"
+
 #define AUTO_TAIL_LOADING_NUM_SCREENFULS  2.5
 
 @interface PhotoFeedViewController () <UITableViewDelegate, UITableViewDataSource>
@@ -33,6 +36,8 @@
   PhotoFeedModel          *_photoFeed;
   UITableView             *_tableView;
   UIActivityIndicatorView *_activityIndicatorView;
+  ASDKPerf *_asdkPerf;
+  //FBAnimationPerformanceTracker *_perfTracker;
 }
 
 #pragma mark - Lifecycle
@@ -51,6 +56,12 @@
     _tableView.dataSource = self;
     
     _activityIndicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+    
+    //_perfTracker = [[FBAnimationPerformanceTracker alloc] initWithConfig:[FBAnimationPerformanceTracker standardConfig]];
+    //_perfTracker.delegate = (id<FBAnimationPerformanceTrackerDelegate>)self;
+    
+    _asdkPerf = [ASDKPerf new];
+    [_asdkPerf registerScrollView:_tableView];
   }
   
   return self;
@@ -179,6 +190,50 @@
 {
   PhotoModel *photo = [_photoFeed objectAtIndex:indexPath.row];
   return [PhotoTableViewCell heightForPhotoModel:photo withWidth:self.view.bounds.size.width];
+}
+
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
+{
+  //[_perfTracker start];
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView
+{
+  if (scrollView.dragging == NO) {
+    //[_perfTracker stop];
+  }
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate
+{
+  if (decelerate == NO) {
+    //[_perfTracker stop];
+  }
+}
+
+#pragma mark - FBAnimationPerformanceTrackerDelegate
+
+- (void)reportDurationInMS:(NSInteger)duration smallDropEvent:(double)smallDropEvent largeDropEvent:(double)largeDropEvent
+{
+    static NSInteger durationSum = 0;
+    static double smallDropEventSum = 0;
+    static double largeDropEventSum = 0;
+
+    durationSum += duration;
+    smallDropEventSum += smallDropEvent;
+    largeDropEventSum += largeDropEvent;
+
+    double small = durationSum / smallDropEventSum;
+    double large = durationSum / largeDropEventSum;
+    double smallPercentage = 1 - (1 / small);
+    double largePercentage = 1 - (1 / large);
+
+    NSAttributedString *attributedString = [[NSAttributedString alloc] initWithString:
+                                                [NSString stringWithFormat:@"small %.1f, %.5f%%, large: %.1f, %.5f%%", small, smallPercentage, large, largePercentage]];
+  NSLog(@"%@", attributedString.string);
+}
+
+- (void)reportStackTrace:(NSString *)stack withSlide:(NSString *)slide {
 }
 
 #pragma mark - UITableViewDelegate methods

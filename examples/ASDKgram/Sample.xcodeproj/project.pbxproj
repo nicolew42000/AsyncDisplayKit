@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		0585428019D4DBE100606EA6 /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 0585427F19D4DBE100606EA6 /* Default-568h@2x.png */; };
+		697D9E581D31D6F100F686FE /* ASDKPerf.m in Sources */ = {isa = PBXBuildFile; fileRef = 697D9E571D31D6F100F686FE /* ASDKPerf.m */; };
+		69D1CAF41D319DB2007FD1BA /* FBAnimationPerformanceTracker.mm in Sources */ = {isa = PBXBuildFile; fileRef = 69D1CAF21D319DB2007FD1BA /* FBAnimationPerformanceTracker.mm */; };
 		6C2C82AC19EE274300767484 /* Default-667h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6C2C82AA19EE274300767484 /* Default-667h@2x.png */; };
 		6C2C82AD19EE274300767484 /* Default-736h@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6C2C82AB19EE274300767484 /* Default-736h@3x.png */; };
 		76229A781CBB79E000B62CEF /* WindowWithStatusBarUnderlay.m in Sources */ = {isa = PBXBuildFile; fileRef = 76229A771CBB79E000B62CEF /* WindowWithStatusBarUnderlay.m */; };
@@ -37,6 +39,10 @@
 		0585427F19D4DBE100606EA6 /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Default-568h@2x.png"; path = "../Default-568h@2x.png"; sourceTree = "<group>"; };
 		05E2128119D4DB510098F589 /* Sample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3D24B17D1E4A4E7A9566C5E9 /* libPods.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libPods.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		697D9E561D31D6F100F686FE /* ASDKPerf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ASDKPerf.h; sourceTree = "<group>"; };
+		697D9E571D31D6F100F686FE /* ASDKPerf.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ASDKPerf.m; sourceTree = "<group>"; };
+		69D1CAF21D319DB2007FD1BA /* FBAnimationPerformanceTracker.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FBAnimationPerformanceTracker.mm; sourceTree = "<group>"; };
+		69D1CAF31D319DB2007FD1BA /* FBAnimationPerformanceTracker.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FBAnimationPerformanceTracker.h; sourceTree = "<group>"; };
 		6C2C82AA19EE274300767484 /* Default-667h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-667h@2x.png"; sourceTree = SOURCE_ROOT; };
 		6C2C82AB19EE274300767484 /* Default-736h@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-736h@3x.png"; sourceTree = SOURCE_ROOT; };
 		76229A761CBB79E000B62CEF /* WindowWithStatusBarUnderlay.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WindowWithStatusBarUnderlay.h; sourceTree = "<group>"; };
@@ -119,6 +125,7 @@
 		05E2128319D4DB510098F589 /* Sample */ = {
 			isa = PBXGroup;
 			children = (
+				69D1CAF11D319DB2007FD1BA /* Perf */,
 				768843511CAA37EF00D8629E /* AppDelegate.h */,
 				768843681CAA37EF00D8629E /* AppDelegate.m */,
 				76229A761CBB79E000B62CEF /* WindowWithStatusBarUnderlay.h */,
@@ -162,6 +169,17 @@
 				D09B5DF0BFB37583DE8F3142 /* Pods-Sample.release.xcconfig */,
 			);
 			name = Pods;
+			sourceTree = "<group>";
+		};
+		69D1CAF11D319DB2007FD1BA /* Perf */ = {
+			isa = PBXGroup;
+			children = (
+				697D9E561D31D6F100F686FE /* ASDKPerf.h */,
+				697D9E571D31D6F100F686FE /* ASDKPerf.m */,
+				69D1CAF21D319DB2007FD1BA /* FBAnimationPerformanceTracker.mm */,
+				69D1CAF31D319DB2007FD1BA /* FBAnimationPerformanceTracker.h */,
+			);
+			path = Perf;
 			sourceTree = "<group>";
 		};
 		767A5F141CAA3D8A004CDA8D /* Controller */ = {
@@ -379,6 +397,8 @@
 				768843961CAA37EF00D8629E /* Utilities.m in Sources */,
 				768843931CAA37EF00D8629E /* UserModel.m in Sources */,
 				768843801CAA37EF00D8629E /* AppDelegate.m in Sources */,
+				697D9E581D31D6F100F686FE /* ASDKPerf.m in Sources */,
+				69D1CAF41D319DB2007FD1BA /* FBAnimationPerformanceTracker.mm in Sources */,
 				768843811CAA37EF00D8629E /* CommentFeedModel.m in Sources */,
 				7688438E1CAA37EF00D8629E /* PhotoFeedNodeController.m in Sources */,
 				768843841CAA37EF00D8629E /* CommentView.m in Sources */,
