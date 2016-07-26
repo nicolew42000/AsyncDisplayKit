@@ -59,10 +59,10 @@
 
 - (void)setLayoutSpecUnderTest:(ASLayoutSpec *)layoutSpecUnderTest sizeRange:(ASSizeRange)sizeRange
 {
-  ASLayout *layout = [layoutSpecUnderTest measureWithSizeRange:sizeRange];
+  ASLayout *layout = [layoutSpecUnderTest calculateLayoutThatFits:sizeRange parentSize:sizeRange.max];
   layout.position = CGPointZero;
   layout = [ASLayout layoutWithLayoutableObject:self
-                           constrainedSizeRange:sizeRange
+                                constrainedSize:sizeRange
                                            size:layout.size
                                      sublayouts:@[layout]];
   _layoutUnderTest = [layout filteredNodeLayoutTree];

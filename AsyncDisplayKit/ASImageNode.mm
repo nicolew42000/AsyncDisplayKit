@@ -18,6 +18,7 @@
 #import "ASDisplayNodeInternal.h"
 #import "ASDisplayNodeExtras.h"
 #import "ASDisplayNode+Beta.h"
+#import "ASLayout.h"
 #import "ASTextNode.h"
 #import "ASImageNode+AnimatedImagePrivate.h"
 
@@ -183,14 +184,14 @@ struct ASImageNodeDrawParameters {
 
 - (CGSize)calculateSizeThatFits:(CGSize)constrainedSize
 {
-  ASDN::MutexLocker l(__instanceLock__);
-  // if a preferredFrameSize is set, call the superclass to return that instead of using the image size.
-  if (CGSizeEqualToSize(self.preferredFrameSize, CGSizeZero) == NO)
-    return [super calculateSizeThatFits:constrainedSize];
-  else if (_image)
-    return _image.size;
-  else
-    return CGSizeZero;
+    ASDN::MutexLocker l(__instanceLock__);
+    // if a preferredFrameSize is set, call the superclass to return that instead of using the image size.
+    if (CGSizeEqualToSize(self.preferredFrameSize, CGSizeZero) == NO)
+        return [super calculateSizeThatFits:constrainedSize];
+    else if (_image)
+        return _image.size;
+    else
+        return CGSizeZero;
 }
 
 #pragma mark - Setter / Getter

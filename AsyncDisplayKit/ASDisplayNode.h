@@ -245,38 +245,6 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (CGSize)measure:(CGSize)constrainedSize;
 
-/**
- * @abstract Asks the node to measure a layout based on given size range.
- *
- * @param constrainedSize The minimum and maximum sizes the receiver should fit in.
- *
- * @return An ASLayout instance defining the layout of the receiver (and its children, if the box layout model is used).
- *
- * @discussion Though this method does not set the bounds of the view, it does have side effects--caching both the
- * constraint and the result.
- *
- * @warning Subclasses must not override this; it caches results from -calculateLayoutThatFits:.  Calling this method may
- * be expensive if result is not cached.
- *
- * @see [ASDisplayNode(Subclassing) calculateLayoutThatFits:]
- */
-- (ASLayout *)measureWithSizeRange:(ASSizeRange)constrainedSize;
-
-
-/**
- * @abstract Provides a way to declare a block to provide an ASLayoutSpec without having to subclass ASDisplayNode and
- * implement layoutSpecThatFits:
- *
- * @return A block that takes a constrainedSize ASSizeRange argument, and must return an ASLayoutSpec that includes all
- * of the subnodes to position in the layout. This input-output relationship is identical to the subclass override
- * method -layoutSpecThatFits:
- *
- * @warning Subclasses that implement -layoutSpecThatFits: must not also use .layoutSpecBlock. Doing so will trigger
- * an exception. A future version of the framework may support using both, calling them serially, with the
- * .layoutSpecBlock superseding any values set by the method override.
- */
-@property (nonatomic, readwrite, copy, nullable) ASLayoutSpecBlock layoutSpecBlock;
-
 /** 
  * @abstract Return the calculated size.
  *
@@ -295,16 +263,6 @@ NS_ASSUME_NONNULL_BEGIN
  * @return The minimum and maximum constrained sizes used by calculateLayoutThatFits:.
  */
 @property (nonatomic, readonly, assign) ASSizeRange constrainedSizeForCalculatedLayout;
-
-/**
- * @abstract Provides a default intrinsic content size for calculateSizeThatFits:. This is useful when laying out
- * a node that either has no intrinsic content size or should be laid out at a different size than its intrinsic content
- * size. For example, this property could be set on an ASImageNode to display at a size different from the underlying
- * image size.
- *
- * @return The preferred frame size of this node
- */
-@property (nonatomic, assign, readwrite) CGSize preferredFrameSize;
 
 /** @name Managing the nodes hierarchy */
 
@@ -599,12 +557,55 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (CGRect)convertRect:(CGRect)rect fromNode:(nullable ASDisplayNode *)node;
 
+
+#pragma mark - Deprecated
+
+/**
+ * @abstract Asks the node to measure a layout based on given size range.
+ *
+ * @param constrainedSize The minimum and maximum sizes the receiver should fit in.
+ *
+ * @return An ASLayout instance defining the layout of the receiver (and its children, if the box layout model is used).
+ *
+ * @discussion Though this method does not set the bounds of the view, it does have side effects--caching both the
+ * constraint and the result.
+ *
+ * @warning Subclasses must not override this; it caches results from -calculateLayoutThatFits:.  Calling this method may
+ * be expensive if result is not cached.
+ *
+ * @see [ASDisplayNode(Subclassing) calculateLayoutThatFits:]
+ */
+- (ASLayout *)measureWithSizeRange:(ASSizeRange)constrainedSize;
+
+/**
+ * @abstract Provides a way to declare a block to provide an ASLayoutSpec without having to subclass ASDisplayNode and
+ * implement layoutSpecThatFits:
+ *
+ * @return A block that takes a constrainedSize ASSizeRange argument, and must return an ASLayoutSpec that includes all
+ * of the subnodes to position in the layout. This input-output relationship is identical to the subclass override
+ * method -layoutSpecThatFits:
+ *
+ * @warning Subclasses that implement -layoutSpecThatFits: must not also use .layoutSpecBlock. Doing so will trigger
+ * an exception. A future version of the framework may support using both, calling them serially, with the
+ * .layoutSpecBlock superseding any values set by the method override.
+ */
+@property (nonatomic, readwrite, copy, nullable) ASLayoutSpecBlock layoutSpecBlock;
+
+@end
+
+@interface ASDisplayNode (ASLayoutSpecAdditions)
+
+- (ASLayoutSpec *)layoutSpec;
+- (ASLayoutSpec *)layoutSpecWithSize:(ASRelativeSizeRange)size;
+
+@end
+
+@interface ASDisplayNode (ASLayoutableSizing) <ASLayoutableSizing>
 @end
 
 /**
  * Convenience methods for debugging.
  */
-
 @interface ASDisplayNode (Debugging) <ASLayoutableAsciiArtProtocol>
 
 /**
@@ -918,6 +919,16 @@ NS_ASSUME_NONNULL_BEGIN
  * @deprecated Deprecated in version 2.0: Use automaticallyManagesSubnodes
  */
 @property (nonatomic, assign) BOOL usesImplicitHierarchyManagement ASDISPLAYNODE_DEPRECATED;
+
+/**
+ * @abstract Provides a default intrinsic content size for calculateSizeThatFits:. This is useful when laying out
+ * a node that either has no intrinsic content size or should be laid out at a different size than its intrinsic content
+ * size. For example, this property could be set on an ASImageNode to display at a size different from the underlying
+ * image size.
+ *
+ * @return The preferred frame size of this node
+ */
+@property (nonatomic, assign, readwrite) CGSize preferredFrameSize;
 
 - (void)reclaimMemory ASDISPLAYNODE_DEPRECATED;
 - (void)recursivelyReclaimMemory ASDISPLAYNODE_DEPRECATED;

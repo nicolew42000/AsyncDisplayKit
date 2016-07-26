@@ -26,6 +26,7 @@
 #import "ASEqualityHelpers.h"
 #import "ASRunLoopQueue.h"
 #import "ASEnvironmentInternal.h"
+#import "ASDimension.h"
 
 #import "ASInternalHelpers.h"
 #import "ASLayout.h"
@@ -69,11 +70,10 @@ NSString * const ASRenderingEngineDidDisplayNodesScheduledBeforeTimestamp = @"AS
 @implementation ASDisplayNode
 
 // these dynamic properties all defined in ASLayoutOptionsPrivate.m
-@dynamic spacingAfter, spacingBefore, flexGrow, flexShrink, flexBasis,
+@dynamic size, spacingAfter, spacingBefore, flexGrow, flexShrink, flexBasis,
          alignSelf, ascender, descender, sizeRange, layoutPosition, layoutableType;
 
 @synthesize name = _name;
-@synthesize preferredFrameSize = _preferredFrameSize;
 @synthesize isFinalLayoutable = _isFinalLayoutable;
 @synthesize threadSafeBounds = _threadSafeBounds;
 
@@ -195,7 +195,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(calculatedSize)), @"Subclass %@ must not override calculatedSize method", NSStringFromClass(self));
     ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(calculatedLayout)), @"Subclass %@ must not override calculatedLayout method", NSStringFromClass(self));
     ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(measure:)), @"Subclass %@ must not override measure method", NSStringFromClass(self));
-    ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(measureWithSizeRange:)), @"Subclass %@ must not override measureWithSizeRange method", NSStringFromClass(self));
+    ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(measureWithSizeRange:)), @"Subclass %@ must not override measureWithSizeRange: method. Instead overwrite calculateLayoutThatFits:", NSStringFromClass(self));
     ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(recursivelyClearContents)), @"Subclass %@ must not override recursivelyClearContents method", NSStringFromClass(self));
     ASDisplayNodeAssert(!ASDisplayNodeSubclassOverridesSelector(self, @selector(recursivelyClearFetchedData)), @"Subclass %@ must not override recursivelyClearFetchedData method", NSStringFromClass(self));
   }
@@ -277,6 +277,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   _displaySentinel = [[ASSentinel alloc] init];
   _preferredFrameSize = CGSizeZero;
   
+  _size = ASRelativeSizeRangeAuto;
   _environmentState = ASEnvironmentStateMakeDefault();
   
   _defaultLayoutTransitionDuration = 0.2;
@@ -625,38 +626,27 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
 
 #pragma mark - Layout measurement calculation
 
+- (ASRelativeSizeRange)size
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _size;
+}
+
+- (void)setSize:(ASRelativeSizeRange)size
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  if (ASRelativeSizeRangeEqualToRelativeSizeRange(_size, size) == NO) {
+    _size = size;
+    [self invalidateCalculatedLayout];
+  }
+}
+
 - (CGSize)measure:(CGSize)constrainedSize
 {
   return [self measureWithSizeRange:ASSizeRangeMake(CGSizeZero, constrainedSize)].size;
 }
 
-- (ASLayout *)measureWithSizeRange:(ASSizeRange)constrainedSize
-{
-  ASDN::MutexLocker l(__instanceLock__);
-  if (! [self shouldMeasureWithSizeRange:constrainedSize]) {
-    ASDisplayNodeAssertNotNil(_calculatedLayout, @"-[ASDisplayNode measureWithSizeRange:] _layout should not be nil! %@", self);
-    return _calculatedLayout ? : [ASLayout layoutWithLayoutableObject:self constrainedSizeRange:constrainedSize size:CGSizeZero];
-  }
-  
-  [self cancelLayoutTransition];
-
-  ASLayout *previousLayout = _calculatedLayout;
-  ASLayout *newLayout = [self calculateLayoutThatFits:constrainedSize];
-  
-  _pendingLayoutTransition = [[ASLayoutTransition alloc] initWithNode:self
-                                                        pendingLayout:newLayout
-                                                       previousLayout:previousLayout];
-  
-  if (ASHierarchyStateIncludesLayoutPending(_hierarchyState) == NO) {
-    // Complete the pending layout transition immediately
-    [self _completePendingLayoutTransition];
-  }
-  
-  ASDisplayNodeAssertNotNil(newLayout, @"-[ASDisplayNode measureWithSizeRange:] newLayout should not be nil! %@", self);
-  return newLayout;
-}
-
-- (BOOL)shouldMeasureWithSizeRange:(ASSizeRange)constrainedSize
+- (BOOL)shouldCalculateLayoutWithConstrainedSize:(ASSizeRange)constrainedSize
 {
   ASDN::MutexLocker l(__instanceLock__);
   if (![self __shouldSize]) {
@@ -673,7 +663,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   // Only generate a new layout if:
   // - The current layout is dirty
   // - The passed constrained size is different than the layout's constrained size
-  return ([self _hasDirtyLayout] || !ASSizeRangeEqualToSizeRange(constrainedSize, _calculatedLayout.constrainedSizeRange));
+  return ([self _hasDirtyLayout] || !ASSizeRangeEqualToSizeRange(constrainedSize, _calculatedLayout.constrainedSize));
 }
 
 - (BOOL)_hasDirtyLayout
@@ -716,7 +706,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   }
   
   [self invalidateCalculatedLayout];
-  [self transitionLayoutWithSizeRange:_calculatedLayout.constrainedSizeRange
+  [self transitionLayoutWithSizeRange:_calculatedLayout.constrainedSize
                              animated:animated
                 measurementCompletion:completion];
 }
@@ -726,7 +716,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
                 measurementCompletion:(void (^)())completion
 {
   ASDisplayNodeAssertMainThread();
-  if (! [self shouldMeasureWithSizeRange:constrainedSize]) {
+  if (! [self shouldCalculateLayoutWithConstrainedSize:constrainedSize]) {
     return;
   }
   
@@ -1240,7 +1230,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   }
   
   // This is the root node. Trigger a full measurement pass on *current* thread. Old constrained size is re-used.
-  [self measureWithSizeRange:_calculatedLayout.constrainedSizeRange];
+  ASCalculateRootLayout(self, _calculatedLayout.constrainedSize);
 
   CGRect oldBounds = self.bounds;
   CGSize oldSize = oldBounds.size;
@@ -1317,7 +1307,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     if (CGRectEqualToRect(bounds, CGRectZero)) {
       LOG(@"Warning: No size given for node before node was trying to layout itself: %@. Please provide a frame for the node.", self);
     } else {
-      [self measureWithSizeRange:ASSizeRangeMake(bounds.size, bounds.size)];
+      ASCalculateRootLayout(self, ASSizeRangeMake(bounds.size, bounds.size));
     }
   }
 }
@@ -2174,6 +2164,40 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
 
 #pragma mark - For Subclasses
 
+- (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize parentSize:(CGSize)parentSize
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  if (! [self shouldCalculateLayoutWithConstrainedSize:constrainedSize]) {
+    ASDisplayNodeAssertNotNil(_calculatedLayout, @"-[ASDisplayNode measureWithSizeRange:] _layout should not be nil! %@", self);
+    return _calculatedLayout ? : [ASLayout layoutWithLayoutableObject:self constrainedSizeRange:constrainedSize size:CGSizeZero];
+  }
+  
+  [self cancelLayoutTransition];
+  
+  ASLayout *previousLayout = _calculatedLayout;
+  ASLayout *newLayout = [self calculateLayoutThatFits:constrainedSize];
+  
+  _pendingLayoutTransition = [[ASLayoutTransition alloc] initWithNode:self
+                                                        pendingLayout:newLayout
+                                                       previousLayout:previousLayout];
+  
+  if (ASHierarchyStateIncludesLayoutPending(_hierarchyState) == NO) {
+    // Complete the pending layout transition immediately
+    [self _completePendingLayoutTransition];
+  }
+  
+  ASDisplayNodeAssertNotNil(newLayout, @"-[ASDisplayNode measureWithSizeRange:] newLayout should not be nil! %@", self);
+  return newLayout;
+}
+
+- (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize
+                restrictedToSizeRange:(ASRelativeSizeRange)size
+                 relativeToParentSize:(CGSize)parentSize
+{
+  const ASSizeRange resolvedRange = ASSizeRangeIntersect(ASRelativeSizeRangeResolve(_size, parentSize), constrainedSize);
+  return [self calculateLayoutThatFits:resolvedRange];
+}
+
 - (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize
 {
   __ASDisplayNodeCheckForLayoutMethodOverrides;
@@ -2190,14 +2214,17 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
     ASEnvironmentStatePropagateDown(layoutSpec, self.environmentTraitCollection);
     
     layoutSpec.isMutable = NO;
-    ASLayout *layout = [layoutSpec measureWithSizeRange:constrainedSize];
+    ASLayout *layout = [layoutSpec calculateLayoutThatFits:constrainedSize parentSize:constrainedSize.max];
     ASDisplayNodeAssertNotNil(layout, @"[ASLayoutSpec measureWithSizeRange:] should never return nil! %@, %@", self, layoutSpec);
       
     // Make sure layoutableObject of the root layout is `self`, so that the flattened layout will be structurally correct.
     BOOL isFinalLayoutable = (layout.layoutableObject != self);
     if (isFinalLayoutable) {
       layout.position = CGPointZero;
-      layout = [ASLayout layoutWithLayoutableObject:self constrainedSizeRange:constrainedSize size:layout.size sublayouts:@[layout]];
+      layout = [ASLayout layoutWithLayoutableObject:self
+                                    constrainedSize:constrainedSize
+                                               size:layout.size
+                                         sublayouts:@[layout]];
 #if LAYOUT_VALIDATION
       ASLayoutableValidateLayout(layout);
 #endif
@@ -2208,7 +2235,7 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
     // assume that the default implementation of -calculateSizeThatFits: returns it.
     CGSize size = [self calculateSizeThatFits:constrainedSize.max];
     return [ASLayout layoutWithLayoutableObject:self
-                           constrainedSizeRange:constrainedSize
+                                constrainedSize:constrainedSize
                                            size:ASSizeRangeClamp(constrainedSize, size)];
   }
 }
@@ -2218,7 +2245,15 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
   __ASDisplayNodeCheckForLayoutMethodOverrides;
     
   ASDN::MutexLocker l(__instanceLock__);
-  return _preferredFrameSize;
+    
+  // Handle deprecated preferred frame size. This should be removed
+  if (CGSizeEqualToSize(_preferredFrameSize, CGSizeZero) == NO) {
+    return _preferredFrameSize;
+  } else {
+    // TODO: sizeRange: Add a deprecation warning
+  }
+
+  return CGSizeZero;
 }
 
 - (ASLayoutSpec *)layoutSpecThatFits:(ASSizeRange)constrainedSize
@@ -2228,12 +2263,15 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
   ASDN::MutexLocker l(__instanceLock__);
   
   if (_layoutSpecBlock != NULL) {
+    // TODO: sizeRange: Add a deprecation warning
     return _layoutSpecBlock(self, constrainedSize);
   }
   
   ASDisplayNodeAssert(NO, @"-[ASDisplayNode layoutSpecThatFits:] should never fall through to return empty value");
   return [[ASLayoutSpec alloc] init];
 }
+
+
 
 - (ASLayout *)calculatedLayout
 {
@@ -2261,15 +2299,7 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
 - (ASSizeRange)constrainedSizeForCalculatedLayout
 {
   ASDN::MutexLocker l(__instanceLock__);
-  return _calculatedLayout.constrainedSizeRange;
-}
-
-- (void)setLayoutSpecBlock:(ASLayoutSpecBlock)layoutSpecBlock
-{
-  // For now there should never be a overwrite of layoutSpecThatFits: and a layoutSpecThatFitsBlock: be provided
-  ASDisplayNodeAssert(!(_methodOverrides & ASDisplayNodeMethodOverrideLayoutSpecThatFits), @"Overwriting layoutSpecThatFits: and providing a layoutSpecBlock block is currently not supported");
-  
-  _layoutSpecBlock = layoutSpecBlock;
+  return _calculatedLayout.constrainedSize;
 }
 
 - (void)setPendingTransitionID:(int32_t)pendingTransitionID
@@ -2290,7 +2320,10 @@ void recursivelyTriggerDisplayForLayer(CALayer *layer, BOOL shouldBlock)
   ASDN::MutexLocker l(__instanceLock__);
   if (! CGSizeEqualToSize(_preferredFrameSize, preferredFrameSize)) {
     _preferredFrameSize = preferredFrameSize;
-    self.sizeRange = ASRelativeSizeRangeMakeWithExactCGSize(_preferredFrameSize);
+    
+    self.size = ASRelativeSizeRangeMakeWithExactCGSize(preferredFrameSize);
+    self.sizeRange = ASRelativeSizeRangeMakeWithExactCGSize(preferredFrameSize);
+    
     [self invalidateCalculatedLayout];
   }
 }
@@ -3128,6 +3161,263 @@ ASEnvironmentLayoutExtensibilityForwarding
   }
 }
 #endif
+
+#pragma mark - Deprecated
+
+- (ASLayout *)measureWithSizeRange:(ASSizeRange)constrainedSize
+{
+  return ASCalculateRootLayout(self, constrainedSize);
+}
+
+- (void)setLayoutSpecBlock:(ASLayoutSpecBlock)layoutSpecBlock
+{
+  // For now there should never be a overwrite of layoutSpecThatFits: and a layoutSpecThatFitsBlock: be provided
+  ASDisplayNodeAssert(!(_methodOverrides & ASDisplayNodeMethodOverrideLayoutSpecThatFits), @"Overwriting layoutSpecThatFits: and providing a layoutSpecBlock block is currently not supported");
+  
+  _layoutSpecBlock = layoutSpecBlock;
+}
+
+@end
+
+@implementation ASDisplayNode (ASLayoutSpecAdditions)
+
+- (ASLayoutSpec *)layoutSpec
+{
+  return [[ASLayoutSpecLayoutableProxy alloc] initWithLayoutable:self];
+}
+
+- (ASLayoutSpec *)layoutSpecWithSize:(ASRelativeSizeRange)size
+{
+  ASLayoutSpec *layoutSpec = [[ASLayoutSpecLayoutableProxy alloc] initWithLayoutable:self];
+  layoutSpec.size = size;
+  return layoutSpec;
+}
+
+@end
+
+@implementation ASDisplayNode (ASLayoutableSizing)
+
+#pragma mark ASRelativeDimensionTypeAuto
+
+- (void)setSizeAuto
+{
+  [self setSizeMinAuto];
+  [self setSizeMaxAuto];
+}
+
+- (void)setSizeWidthAuto
+{
+  [self setSizeMinWidthAuto];
+  [self setSizeMaxWidthAuto];
+}
+
+- (void)setSizeHeightAuto
+{
+  [self setSizeMinHeightAuto];
+  [self setSizeMaxHeightAuto];
+}
+
+- (void)setSizeMinAuto
+{
+  [self setSizeMinWidthAuto];
+  [self setSizeMinHeightAuto];
+}
+
+- (void)setSizeMaxAuto
+{
+  [self setSizeMaxWidthAuto];
+  [self setSizeMaxHeightAuto];
+}
+
+- (void)setSizeMinWidthAuto
+{
+  [self setSizeMinWidthWithDimension:ASRelativeDimensionAuto];
+}
+
+- (void)setSizeMinHeightAuto
+{
+  [self setSizeMinHeightWithDimension:ASRelativeDimensionAuto];
+}
+
+- (void)setSizeMaxWidthAuto
+{
+  [self setSizeMaxWidthWithDimension:ASRelativeDimensionAuto];
+}
+
+- (void)setSizeMaxHeightAuto
+{
+  [self setSizeMaxHeightWithDimension:ASRelativeDimensionAuto];
+}
+
+#pragma mark ASRelativeDimensionTypePoints
+
+- (void)setSizeMinExactCGSize:(CGSize)size
+{
+  [self setSizeMinWidthPoints:size.width];
+  [self setSizeMinHeightPoints:size.height];
+}
+
+- (void)setSizeMaxExactCGSize:(CGSize)size
+{
+  [self setSizeMaxWidthPoints:size.width];
+  [self setSizeMaxHeightPoints:size.height];
+}
+
+- (void)setSizeWithExactCGSize:(CGSize)size
+{
+  [self setSizeWithMinExactCGSize:size maxExactCGSize:size];
+}
+
+- (void)setSizeWidthExactPoints:(CGFloat)points
+{
+  [self setSizeMinWidthPoints:points];
+  [self setSizeMaxWidthPoints:points];
+}
+
+- (void)setSizeHeightExactPoints:(CGFloat)points
+{
+  [self setSizeMinHeightPoints:points];
+  [self setSizeMaxHeightPoints:points];
+}
+
+- (void)setSizeWithMinExactCGSize:(CGSize)minSize maxExactCGSize:(CGSize)maxSize
+{
+  [self setSizeMinExactCGSize:minSize];
+  [self setSizeMaxExactCGSize:maxSize];
+}
+
+- (void)setSizeWithExactWidth:(CGFloat)width exactHeight:(CGFloat)height
+{
+  [self setSizeWithMinExactCGSize:CGSizeMake(width, height) maxExactCGSize:CGSizeMake(width, height)];
+}
+
+- (void)setSizeWithMinWidth:(CGFloat)minWidth minHeight:(CGFloat)minHeight maxWidth:(CGFloat)maxWidth maxHeight:(CGFloat)maxHeight
+{
+  [self setSizeWithMinExactCGSize:CGSizeMake(minWidth, minHeight) maxExactCGSize:CGSizeMake(maxWidth, maxHeight)];
+}
+
+- (void)setSizeMinWidthPoints:(CGFloat)points
+{
+  [self setSizeMinWidthWithDimension:ASRelativeDimensionMakeWithPoints(points)];
+}
+
+- (void)setSizeMinHeightPoints:(CGFloat)points
+{
+  [self setSizeMinHeightWithDimension:ASRelativeDimensionMakeWithPoints(points)];
+}
+
+- (void)setSizeMaxWidthPoints:(CGFloat)points
+{
+  [self setSizeMaxWidthWithDimension:ASRelativeDimensionMakeWithPoints(points)];
+}
+
+- (void)setSizeMaxHeightPoints:(CGFloat)points
+{
+  [self setSizeMaxHeightWithDimension:ASRelativeDimensionMakeWithPoints(points)];
+}
+
+#pragma mark ASRelativeDimensionTypeFraction
+
+- (void)setSizeExactPercentage:(CGFloat)percentage
+{
+  [self setSizeMinExactPercentage:percentage maxExactPercentage:percentage];
+}
+
+- (void)setSizeMinExactPercentage:(CGFloat)minPercentage maxExactPercentage:(CGFloat)maxPercentage
+{
+  [self setSizeMinExactPercentage:minPercentage];
+  [self setSizeMaxExactPercentage:maxPercentage];
+}
+
+- (void)setSizeMinExactPercentage:(CGFloat)percentage
+{
+  [self setSizeMinWidthPercentage:percentage];
+  [self setSizeMinHeightPercentage:percentage];
+}
+
+- (void)setSizeMaxExactPercentage:(CGFloat)percentage
+{
+  [self setSizeMaxWidthPercentage:percentage];
+  [self setSizeMaxHeightPercentage:percentage];
+}
+
+- (void)setSizeWidthExactPercentage:(CGFloat)percentage
+{
+  [self setSizeMinWidthPercentage:percentage];
+  [self setSizeMaxWidthPercentage:percentage];
+}
+
+- (void)setSizeHeightExactPercentage:(CGFloat)percentage
+{
+  [self setSizeMinHeightPercentage:percentage];
+  [self setSizeMaxHeightPercentage:percentage];
+}
+
+- (void)setSizeMinWidthPercentage:(CGFloat)percentage
+{
+  [self setSizeMinWidthWithDimension:ASRelativeDimensionMakeWithFraction(percentage)];
+}
+
+- (void)setSizeMinHeightPercentage:(CGFloat)percentage
+{
+  [self setSizeMinHeightWithDimension:ASRelativeDimensionMakeWithFraction(percentage)];
+}
+
+- (void)setSizeMaxWidthPercentage:(CGFloat)percentage
+{
+  [self setSizeMaxWidthWithDimension:ASRelativeDimensionMakeWithFraction(percentage)];
+}
+
+- (void)setSizeMaxHeightPercentage:(CGFloat)percentage
+{
+  [self setSizeMaxHeightWithDimension:ASRelativeDimensionMakeWithFraction(percentage)];
+}
+
+#pragma mark ASRelativeDimension
+
+- (void)setSizeMinWidthWithDimension:(ASRelativeDimension)dimension
+{
+  [self setSizeWithMinWidthDimension:dimension
+                  minHeightDimension:_size.min.height
+                   maxWidthDimension:_size.max.width
+                  maxHeightDimension:_size.max.height];
+}
+
+- (void)setSizeMinHeightWithDimension:(ASRelativeDimension)dimension
+{
+  [self setSizeWithMinWidthDimension:_size.min.width
+                  minHeightDimension:dimension
+                   maxWidthDimension:_size.max.width
+                  maxHeightDimension:_size.max.height];
+}
+
+- (void)setSizeMaxWidthWithDimension:(ASRelativeDimension)dimension
+{
+  [self setSizeWithMinWidthDimension:_size.min.width
+                  minHeightDimension:_size.min.height
+                   maxWidthDimension:dimension
+                  maxHeightDimension:_size.max.height];
+}
+
+- (void)setSizeMaxHeightWithDimension:(ASRelativeDimension)dimension
+{
+  [self setSizeWithMinWidthDimension:_size.min.width
+                  minHeightDimension:_size.min.height
+                   maxWidthDimension:_size.max.width
+                  maxHeightDimension:dimension];
+}
+
+- (void)setSizeWithMinWidthDimension:(ASRelativeDimension)minWidthDimension
+                  minHeightDimension:(ASRelativeDimension)minHeightDimension
+                   maxWidthDimension:(ASRelativeDimension)maxWidthDimension
+                  maxHeightDimension:(ASRelativeDimension)maxHeightDimension
+{
+  self.size = ASRelativeSizeRangeMakeWithRelativeDimensions(minWidthDimension,
+                                                            minHeightDimension,
+                                                            maxWidthDimension,
+                                                            maxHeightDimension);
+}
+
 @end
 
 @implementation ASDisplayNode (Debugging)

@@ -88,6 +88,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+/**
+ * Can be used as proxy for wrapping a layoutable that just calls calculateLayoutThatFits:parentSize: on it and returns
+ * this value.
+ */
+@interface ASLayoutSpecLayoutableProxy : ASLayoutSpec
+
+- (instancetype)initWithLayoutable:(id<ASLayoutable>)layoutable;
+
+@end
+
+/**
+ *
+ */
 @interface ASLayoutSpec (Debugging) <ASLayoutableAsciiArtProtocol>
 /**
  *  Used by other layout specs to create ascii art debug strings

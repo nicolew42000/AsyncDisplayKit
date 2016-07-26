@@ -21,6 +21,13 @@
 @class ASLayout;
 @class ASLayoutSpec;
 
+/** A constant that indicates that the parent's size is not yet determined in a given dimension. */
+extern CGFloat const ASLayoutableParentDimensionUndefined;
+
+/** A constant that indicates that the parent's size is not yet determined in either dimension. */
+extern CGSize const ASLayoutableParentSizeUndefined;
+
+/** Type of ASLayoutable  */
 typedef NS_ENUM(NSUInteger, ASLayoutableType) {
   ASLayoutableTypeLayoutSpec,
   ASLayoutableTypeDisplayNode
@@ -46,15 +53,20 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @protocol ASLayoutable <ASEnvironment, ASStackLayoutable, ASStaticLayoutable, ASLayoutablePrivate, ASLayoutableExtensibility>
 
+@property (nonatomic, assign, readwrite) ASRelativeSizeRange size;
+
 /**
  * @abstract Returns type of layoutable
  */
-@property (nonatomic, readonly) ASLayoutableType layoutableType;
+@property (nonatomic, assign, readonly) ASLayoutableType layoutableType;
 
 /**
  * @abstract Returns if the layoutable can be used to layout in an asynchronous way on a background thread.
  */
-@property (nonatomic, readonly) BOOL canLayoutAsynchronous;
+@property (nonatomic, assign, readonly) BOOL canLayoutAsynchronous;
+
+
+#pragma mark - Calculate layout
 
 /**
  * @abstract Calculate a layout based on given size range.
@@ -64,6 +76,52 @@ NS_ASSUME_NONNULL_BEGIN
  * @return An ASLayout instance defining the layout of the receiver and its children.
  */
 - (ASLayout *)measureWithSizeRange:(ASSizeRange)constrainedSize;
+
+/**
+ * Call this on children layoutables to compute their layouts within your implementation of -calculateLayoutThatFits:.
+ *
+ * @warning You may not override this method. Override -calculateLayoutThatFits: instead.
+ * @warning In almost all cases, prefer the use of ASCalculateLayout in ASLayout
+ *
+ * @param constrainedSize Specifies a minimum and maximum size. The receiver must choose a size that is in this range.
+ * @param parentSize The parent node's size. If the parent component does not have a final size in a given dimension,
+ *                  then it should be passed as ASLayoutableParentDimensionUndefined (for example, if the parent's width
+ *                  depends on the child's size).
+ *
+ * @return A struct defining the layout of the receiver and its children.
+ */
+- (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize parentSize:(CGSize)parentSize;
+
+/**
+ * Override this method to compute your nodes's layout.
+ *
+ * @discussion Why do you need to override -calculateLayoutThatFits: instead of -calculateLayoutThatFits:parentSize:?
+ * The base implementation of -calculateLayoutThatFits:parentSize: does the following for you:
+ * 1. First, it uses the parentSize parameter to resolve the nodes's size (the one assigned to the sizeRange property).
+ * 2. Then, it intersects the resolved size with the constrainedSize parameter. If the two don't intersect,
+ *    constrainedSize wins. This allows a component to always override its childrens' sizes when computing its layout.
+ *    (The analogy for UIView: you might return a certain size from -sizeThatFits:, but a parent view can always override
+ *    that size and set your frame to any size.)
+ *
+ * @param constrainedSize A min and max size. This is computed as described in the description. The ASLayout you
+ *                        return MUST have a size between these two sizes.
+ */
+- (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize;
+
+/**
+ * ASLayoutable's implementation of -calculateLayoutThatFits:parentSize: calls this method to resolve the component's size
+ * against parentSize, intersect it with constrainedSize, and call -calculateLayoutThatFits: with the result.
+ *
+ * In certain advanced cases, you may want to customize this logic. Overriding this method allows you to receive all
+ * three parameters and do the computation yourself.
+ *
+ * @warning Overriding this method should be done VERY rarely.
+ */
+- (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize
+                restrictedToSizeRange:(ASRelativeSizeRange)size
+                 relativeToParentSize:(CGSize)parentSize;
+
+
 
 #pragma mark - Layout options from the Layoutable Protocols
 
@@ -123,6 +181,58 @@ NS_ASSUME_NONNULL_BEGIN
 
 /** The position of this object within its parent spec. */
 @property (nonatomic, assign) CGPoint layoutPosition;
+
+@end
+
+@protocol ASLayoutableSizing <ASLayoutable>
+
+// ASRelativeDimensionTypeAuto
+- (void)setSizeAuto;
+- (void)setSizeWidthAuto;
+- (void)setSizeHeightAuto;
+
+- (void)setSizeMinAuto;
+- (void)setSizeMaxAuto;
+
+- (void)setSizeMinWidthAuto;
+- (void)setSizeMinHeightAuto;
+- (void)setSizeMaxWidthAuto;
+- (void)setSizeMaxHeightAuto;
+
+// ASRelativeDimensionTypePoints
+- (void)setSizeMinExactCGSize:(CGSize)size;
+- (void)setSizeMaxExactCGSize:(CGSize)size;
+
+- (void)setSizeWidthExactPoints:(CGFloat)points;
+- (void)setSizeHeightExactPoints:(CGFloat)points;
+
+- (void)setSizeMinHeightPoints:(CGFloat)points;
+- (void)setSizeMinWidthPoints:(CGFloat)points;
+- (void)setSizeMaxHeightPoints:(CGFloat)points;
+- (void)setSizeMaxWidthPoints:(CGFloat)points;
+
+- (void)setSizeWithExactCGSize:(CGSize)size;
+- (void)setSizeWithMinExactCGSize:(CGSize)minSize maxExactCGSize:(CGSize)maxSize;
+- (void)setSizeWithExactWidth:(CGFloat)width exactHeight:(CGFloat)height;
+- (void)setSizeWithMinWidth:(CGFloat)minWidth
+                  minHeight:(CGFloat)minHeight
+                   maxWidth:(CGFloat)maxWidth
+                  maxHeight:(CGFloat)maxHeight;
+
+// ASRelativeDimensionTypePercent
+- (void)setSizeExactPercentage:(CGFloat)percentage;
+- (void)setSizeMinExactPercentage:(CGFloat)minPercentage maxExactPercentage:(CGFloat)maxPercentage;
+
+- (void)setSizeWidthExactPercentage:(CGFloat)percentage;
+- (void)setSizeHeightExactPercentage:(CGFloat)percentage;
+
+- (void)setSizeMinExactPercentage:(CGFloat)percentage;
+- (void)setSizeMaxExactPercentage:(CGFloat)percentage;
+
+- (void)setSizeMinHeightPercentage:(CGFloat)percentage;
+- (void)setSizeMinWidthPercentage:(CGFloat)percentage;
+- (void)setSizeMaxHeightPercentage:(CGFloat)percentage;
+- (void)setSizeMaxWidthPercentage:(CGFloat)percentage;
 
 @end
 
