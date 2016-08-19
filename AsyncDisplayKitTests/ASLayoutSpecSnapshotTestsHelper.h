@@ -37,11 +37,16 @@
 
 @end
 
-static inline ASStaticSizeDisplayNode *ASDisplayNodeWithBackgroundColor(UIColor *backgroundColor)
+static inline ASStaticSizeDisplayNode *ASDisplayNodeWithBackgroundColorAndSize(UIColor *backgroundColor, ASRelativeSizeRange size)
 {
-  ASStaticSizeDisplayNode *node = [[ASStaticSizeDisplayNode alloc] init];
+  ASStaticSizeDisplayNode *node = (ASStaticSizeDisplayNode *)[[ASDisplayNode alloc] init];
   node.layerBacked = YES;
   node.backgroundColor = backgroundColor;
-  node.staticSize = CGSizeZero;
+  node.size = size;
   return node;
+}
+
+static inline ASStaticSizeDisplayNode *ASDisplayNodeWithBackgroundColor(UIColor *backgroundColor)
+{
+  return ASDisplayNodeWithBackgroundColorAndSize(backgroundColor, ASRelativeSizeRangeAuto);
 }

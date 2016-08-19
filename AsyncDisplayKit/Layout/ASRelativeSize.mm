@@ -10,9 +10,10 @@
 
 #import "ASRelativeSize.h"
 
+ASRelativeSize const ASRelativeSizeAuto = {ASRelativeDimensionAuto, ASRelativeDimensionAuto};
+
 ASRelativeSizeRange const ASRelativeSizeRangeUnconstrained = {};
-ASRelativeSizeRange const ASRelativeSizeRangeAuto = {{ASRelativeDimensionAuto, ASRelativeDimensionAuto},
-                                                     {ASRelativeDimensionAuto, ASRelativeDimensionAuto}};
+ASRelativeSizeRange const ASRelativeSizeRangeAuto = {ASRelativeSizeAuto, ASRelativeSizeAuto};
 
 #pragma mark - ASRelativeSize
 

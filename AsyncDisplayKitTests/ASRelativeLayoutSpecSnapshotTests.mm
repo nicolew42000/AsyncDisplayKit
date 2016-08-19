@@ -23,14 +23,14 @@ static const ASSizeRange kSize = {{100, 120}, {320, 160}};
 
 - (void)testWithOptions
 {
-
   [self testAllVerticalPositionsForHorizontalPosition:ASRelativeLayoutSpecPositionStart];
   [self testAllVerticalPositionsForHorizontalPosition:ASRelativeLayoutSpecPositionCenter];
   [self testAllVerticalPositionsForHorizontalPosition:ASRelativeLayoutSpecPositionEnd];
 
 }
 
-- (void)testAllVerticalPositionsForHorizontalPosition:(ASRelativeLayoutSpecPosition)horizontalPosition {
+- (void)testAllVerticalPositionsForHorizontalPosition:(ASRelativeLayoutSpecPosition)horizontalPosition
+{
   [self testWithHorizontalPosition:horizontalPosition verticalPosition:ASRelativeLayoutSpecPositionStart sizingOptions:{}];
   [self testWithHorizontalPosition:horizontalPosition verticalPosition:ASRelativeLayoutSpecPositionCenter sizingOptions:{}];
   [self testWithHorizontalPosition:horizontalPosition verticalPosition:ASRelativeLayoutSpecPositionEnd sizingOptions:{}];
@@ -54,17 +54,25 @@ static const ASSizeRange kSize = {{100, 120}, {320, 160}};
 
 - (void)testWithHorizontalPosition:(ASRelativeLayoutSpecPosition)horizontalPosition
                   verticalPosition:(ASRelativeLayoutSpecPosition)verticalPosition
-                   sizingOptions:(ASRelativeLayoutSpecSizingOption)sizingOptions
+                     sizingOptions:(ASRelativeLayoutSpecSizingOption)sizingOptions
 {
   ASDisplayNode *backgroundNode = ASDisplayNodeWithBackgroundColor([UIColor redColor]);
-  ASStaticSizeDisplayNode *foregroundNode = ASDisplayNodeWithBackgroundColor([UIColor greenColor]);
-  foregroundNode.staticSize = {70, 100};
+  ASStaticSizeDisplayNode *foregroundNode = ASDisplayNodeWithBackgroundColorAndSize(
+                                             [UIColor greenColor],
+                                             ASRelativeSizeRangeMake(
+                                              ASRelativeSizeMakeWithCGSize({70, 100}),
+                                              ASRelativeSizeMakeWithCGSize({CGFLOAT_MAX, CGFLOAT_MAX})
+                                             )
+                                            );
 
   ASLayoutSpec *layoutSpec =
   [ASBackgroundLayoutSpec
    backgroundLayoutSpecWithChild:
    [ASRelativeLayoutSpec
-    relativePositionLayoutSpecWithHorizontalPosition:horizontalPosition verticalPosition:verticalPosition sizingOption:sizingOptions child:foregroundNode]
+    relativePositionLayoutSpecWithHorizontalPosition:horizontalPosition
+    verticalPosition:verticalPosition
+    sizingOption:sizingOptions
+    child:foregroundNode]
    background:backgroundNode];
 
   [self testLayoutSpec:layoutSpec
@@ -75,7 +83,7 @@ static const ASSizeRange kSize = {{100, 120}, {320, 160}};
 
 static NSString *suffixForPositionOptions(ASRelativeLayoutSpecPosition horizontalPosition,
                                           ASRelativeLayoutSpecPosition verticalPosition,
-                                           ASRelativeLayoutSpecSizingOption sizingOptions)
+                                          ASRelativeLayoutSpecSizingOption sizingOptions)
 {
   NSMutableString *suffix = [NSMutableString string];
 
@@ -105,8 +113,10 @@ static NSString *suffixForPositionOptions(ASRelativeLayoutSpecPosition horizonta
 - (void)testMinimumSizeRangeIsGivenToChildWhenNotPositioning
 {
   ASDisplayNode *backgroundNode = ASDisplayNodeWithBackgroundColor([UIColor redColor]);
-  ASStaticSizeDisplayNode *foregroundNode = ASDisplayNodeWithBackgroundColor([UIColor redColor]);
-  foregroundNode.staticSize = {10, 10};
+  ASStaticSizeDisplayNode *foregroundNode = ASDisplayNodeWithBackgroundColorAndSize(
+                                             [UIColor redColor],
+                                             ASRelativeSizeRangeMakeWithExactCGSize({10, 10})
+                                            );
   foregroundNode.flexGrow = YES;
   
   ASLayoutSpec *childSpec = [ASBackgroundLayoutSpec

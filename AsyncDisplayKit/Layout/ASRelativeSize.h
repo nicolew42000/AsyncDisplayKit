@@ -21,6 +21,8 @@ typedef struct {
   ASRelativeDimension height;
 } ASRelativeSize;
 
+extern ASRelativeSize const ASRelativeSizeAuto;
+
 /**
  Expresses an inclusive range of relative sizes. Used to provide additional constraint to layout. 
  Used by ASStaticLayoutSpec.
