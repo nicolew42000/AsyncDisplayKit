@@ -77,7 +77,19 @@
     
     return [ASStaticLayoutSpec staticLayoutSpecWithChildren:@[stack1, stack2, node5]];
   };
+  
+  // Create a pending layout
   [node measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeZero)];
+  
+  // Set some size so the layout is actually happening
+  CGRect r = node.frame;
+  r.size = CGSizeMake(100, 100);
+  node.frame = r;
+  
+  // Create so the layout call is actually happening
+  [node view];
+  [node layoutIfNeeded];
+  
   XCTAssertEqual(node.subnodes[0], node5);
   XCTAssertEqual(node.subnodes[1], node1);
   XCTAssertEqual(node.subnodes[2], node2);
@@ -104,13 +116,24 @@
     }
   };
   
+  // Create a pending layout
   [node measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeZero)];
+  
+  // Set some size so the layout is actually happening
+  CGRect r = node.frame;
+  r.size = CGSizeMake(100, 100);
+  node.frame = r;
+  
+  // Create so the layout call is actually happening
+  [node view];
+  [node layoutIfNeeded];
+  
   XCTAssertEqual(node.subnodes[0], node1);
   XCTAssertEqual(node.subnodes[1], node2);
   
   node.layoutState = @2;
-  [node invalidateCalculatedLayout];
-  [node measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeZero)];
+  [node setNeedsLayout];
+  [node layoutIfNeeded];
 
   XCTAssertEqual(node.subnodes[0], node1);
   XCTAssertEqual(node.subnodes[1], node3);

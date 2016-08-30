@@ -29,7 +29,13 @@
   // trivial test case to ensure ASSnapshotTestCase works
   ASImageNode *imageNode = [[ASImageNode alloc] init];
   imageNode.image = [self testImage];
-  [imageNode measure:CGSizeMake(100, 100)];
+  
+  CGRect r = imageNode.frame;
+  r.size = [imageNode measure:CGSizeMake(100, 100)];
+  imageNode.frame = r;
+  
+  [imageNode view];
+  [imageNode layoutIfNeeded];
 
   ASSnapshotVerifyNode(imageNode, nil);
 }
@@ -43,12 +49,19 @@
   
   // Snapshot testing requires that node is formally laid out.
   imageNode.preferredFrameSize = CGSizeMake(100, 100);
-  [imageNode measure:CGSizeMake(100, 100)];
+  CGRect r = imageNode.frame;
+  r.size = [imageNode measure:CGSizeMake(100, 100)];
+  imageNode.frame = r;
+  [imageNode view];
+  [imageNode layoutIfNeeded];
 
   ASSnapshotVerifyNode(imageNode, @"first");
   
   imageNode.preferredFrameSize = CGSizeMake(200, 200);
-  [imageNode measure:CGSizeMake(200, 200)];
+  r = imageNode.frame;
+  r.size = [imageNode measure:CGSizeMake(200, 200)];
+  imageNode.frame = r;
+  [imageNode layoutIfNeeded];
   
   ASSnapshotVerifyNode(imageNode, @"second");
   

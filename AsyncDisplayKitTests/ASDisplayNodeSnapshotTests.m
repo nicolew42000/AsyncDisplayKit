@@ -28,7 +28,15 @@
   node.layoutSpecBlock = ^(ASDisplayNode * _Nonnull node, ASSizeRange constrainedSize) {
     return [ASInsetLayoutSpec insetLayoutSpecWithInsets:UIEdgeInsetsMake(5, 5, 5, 5) child:subnode];
   };
-  [node measure:CGSizeMake(100, 100)];
+  
+  CGRect r = node.frame;
+  r.size = [node measure:CGSizeMake(100, 100)];
+  node.frame = r;
+  
+  [node view];
+  
+  [node setNeedsLayout];
+  [node layoutIfNeeded];
 
   ASSnapshotVerifyNode(node, nil);
 }

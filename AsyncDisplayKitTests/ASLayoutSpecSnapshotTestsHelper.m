@@ -39,7 +39,20 @@
   
   node.layoutSpecUnderTest = layoutSpec;
   
-  [node measureWithSizeRange:sizeRange];
+  CGRect r = node.frame;
+  r.size = [node measureWithSizeRange:sizeRange].size;
+  node.frame = r;
+  
+  if (node.isLayerBacked) {
+    [node layer];
+  } else {
+    [node view];
+  }
+  
+  // If we call setNeedsLayout in this case we trigger a double measurement call and it will assert as it 
+  //[node setNeedsLayout];
+  [node layoutIfNeeded];
+  
   ASSnapshotVerifyNode(node, identifier);
 }
 

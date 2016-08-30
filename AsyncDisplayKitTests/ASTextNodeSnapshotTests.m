@@ -25,8 +25,16 @@
   ASTextNode *textNode = [[ASTextNode alloc] init];
   textNode.attributedText = [[NSAttributedString alloc] initWithString:@"judar"
                                                             attributes:@{NSFontAttributeName : [UIFont italicSystemFontOfSize:24]}];
-  [textNode measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX))];
   textNode.textContainerInset = UIEdgeInsetsMake(0, 2, 0, 2);
+  
+  // Set some size so the layout is actually happening
+  CGRect r = textNode.frame;
+  r.size = [textNode measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX))].size;
+  textNode.frame = r;
+  
+  // Create so the layout call is actually happening
+  [textNode view];
+  [textNode layoutIfNeeded];
   
   ASSnapshotVerifyNode(textNode, nil);
 }
@@ -39,14 +47,19 @@
   ASTextNode *textNode = [[ASTextNode alloc] init];
   textNode.attributedText = [[NSAttributedString alloc] initWithString:@"judar judar judar judar judar judar"
                                                             attributes:@{ NSFontAttributeName : [UIFont systemFontOfSize:30] }];
-
-  [textNode measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeMake(100, 80))];
-  textNode.frame = CGRectMake(50, 50, textNode.calculatedSize.width, textNode.calculatedSize.height);
   textNode.textContainerInset = UIEdgeInsetsMake(10, 10, 10, 10);
-
+  
+  
+  CGRect t = CGRectMake(50, 50, 0, 0);
+  t.size = [textNode measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeMake(100, 80))].size;
+  textNode.frame = t;
+  
   [backgroundView addSubview:textNode.view];
   backgroundView.frame = UIEdgeInsetsInsetRect(textNode.bounds, UIEdgeInsetsMake(-50, -50, -50, -50));
-
+  
+  [backgroundView setNeedsLayout];
+  [backgroundView layoutIfNeeded];
+  
   textNode.highlightRange = NSMakeRange(0, textNode.attributedText.length);
 
   [ASSnapshotTestCase hackilySynchronouslyRecursivelyRenderNode:textNode];
@@ -61,13 +74,17 @@
   ASTextNode *textNode = [[ASTextNode alloc] init];
   textNode.attributedText = [[NSAttributedString alloc] initWithString:@"yolo"
                                                             attributes:@{ NSFontAttributeName : [UIFont systemFontOfSize:30] }];
-
-  [textNode measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX))];
-  textNode.frame = CGRectMake(50, 50, textNode.calculatedSize.width, textNode.calculatedSize.height);
   textNode.textContainerInset = UIEdgeInsetsMake(5, 10, 10, 5);
+
+  CGRect t = CGRectMake(50, 50, 0, 0);
+  t.size = [textNode measureWithSizeRange:ASSizeRangeMake(CGSizeZero, CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX))].size;
+  textNode.frame = t;
 
   [backgroundView addSubview:textNode.view];
   backgroundView.frame = UIEdgeInsetsInsetRect(textNode.bounds, UIEdgeInsetsMake(-50, -50, -50, -50));
+  
+  [backgroundView setNeedsLayout];
+  [backgroundView layoutIfNeeded];
 
   textNode.highlightRange = NSMakeRange(0, textNode.attributedText.length);
 
